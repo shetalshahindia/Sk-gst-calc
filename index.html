@@ -384,7 +384,12 @@ function calc(){
     sumTaxable+=taxable;
     sumCgst+=cgst;
     sumSgst+=sgst;
-    rawTotal+=ri*qty;
+
+    // Raw (unrounded) line total for accurate round-off
+    const rawExcl=g>0?ri/(1+g/100):ri;
+    const rawTaxable=Math.max(rawExcl*qty-disc,0);
+    const rawTax=rawTaxable*(g/100);
+    rawTotal+=rawTaxable+rawTax;
   });
 
   sumTaxable=r2(sumTaxable);
