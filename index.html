@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>GST Calc</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#f5f0e8;--tbl:#fff;--ink:#1a1206;--dim:#7a6e5e;--bdr:#d6ccbc;
+    --grn:#0d7a3e;--hdr:#ede7db;--inp:#faf6ef;
+    --tot-bg:#1a1206;--tot-fg:#f5f0e8;--acc:#1556b0;--amb:#b8860b;
+    --key:#2c2c2e;--key-fg:#f0f0f0;--key-hi:#3a3a3c;--key-fn:#4a8af4;--key-red:#c0392b;
+    --swipe-red:#ff3b30;
+  }
+  .dark {
+    --bg:#111318;--tbl:#1c2028;--ink:#f0ece4;--dim:#8a9ab0;--bdr:#2e3444;
+    --grn:#4ade80;--hdr:#1e2430;--inp:#252a34;
+    --tot-bg:#38bdf8;--tot-fg:#0e1117;--acc:#6db3f8;--amb:#fbbf24;
+    --key:#1e2430;--key-fg:#e0e8f0;--key-hi:#2a3444;--key-fn:#4a8af4;--key-red:#e74c3c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden}
+  body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--ink);transition:background .3s,color .3s}
+  .app{max-width:480px;margin:0 auto;display:flex;flex-direction:column;height:100dvh;padding:4px 4px 0}
+
+  /* Fullscreen prompt */
+  .fs-prompt{
+    position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:100;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+    color:#fff;font-family:inherit;animation:fadeIn .3s;
+  }
+  .fs-prompt h2{font-size:20px;font-weight:900}
+  .fs-prompt p{font-size:14px;color:#aaa;text-align:center;padding:0 30px}
+  .fs-btn{
+    padding:14px 36px;background:#4a8af4;color:#fff;border:none;border-radius:12px;
+    font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;
+  }
+  .fs-btn:active{transform:scale(.95)}
+  .fs-skip{background:none;border:none;color:#888;font-family:inherit;font-size:13px;cursor:pointer;margin-top:4px}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+  .top{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 6px;flex-shrink:0}
+  .top h1{font-size:15px;font-weight:900}
+  .top-btns{display:flex;gap:5px}
+  .tb{height:32px;border:2px solid var(--bdr);border-radius:8px;background:var(--tbl);color:var(--ink);font-family:inherit;font-size:12px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0 10px;transition:all .15s}
+  .tb:active{transform:scale(.95)}
+  .tb.add{border-color:var(--grn);color:var(--grn)}
+
+  .tbl-wrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;border-radius:10px;border:2px solid var(--bdr);background:var(--tbl);min-height:0}
+  table{width:100%;border-collapse:collapse}
+  th{background:var(--hdr);color:var(--dim);font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.4px;padding:6px 2px;border-bottom:2px solid var(--bdr);position:sticky;top:0;z-index:2;white-space:nowrap}
+  td{border-bottom:1.5px solid var(--bdr);padding:0;vertical-align:middle;text-align:center}
+
+  /* Swipeable row */
+  tr.line-row{position:relative;transition:background .2s}
+  tr.line-row.swiping td{background:var(--swipe-red);color:#fff;transition:background .15s}
+
+  .ti{width:100%;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:17px;font-weight:900;padding:10px 3px;text-align:center;outline:none;caret-color:var(--acc);transition:background .15s}
+  .ti:focus{background:var(--inp);outline:2px solid var(--acc);outline-offset:-2px;border-radius:4px}
+  .ti::placeholder{color:var(--dim);font-size:12px;font-weight:700}
+
+  .gs{width:100%;border:none;background:transparent;color:var(--ink);font-family:inherit;font-size:15px;font-weight:900;padding:10px 1px;text-align:center;outline:none;appearance:none;cursor:pointer}
+  .gs:focus{background:var(--inp)}
+
+  .cv{font-size:14px;font-weight:900;padding:6px 3px;text-align:right;white-space:nowrap;transition:color .2s}
+
+  .rm{border:none;background:none;color:#d32f2f;font-size:16px;font-weight:900;cursor:pointer;padding:2px 4px}
+
+  .frow td{background:var(--hdr);font-weight:900;font-size:13px;padding:6px 6px}
+  .frow .fl{text-align:left;color:var(--dim)}
+  .frow .fv{text-align:right;font-size:15px}
+  .frow .fv.grn{color:var(--grn)}
+  .frow .fv.amb{color:var(--amb)}
+
+  .gtrow td{background:var(--tot-bg);color:var(--tot-fg);font-weight:900;padding:10px 6px;position:relative;overflow:hidden}
+  .gtrow .gl{font-size:14px;text-align:left;letter-spacing:.5px}
+  .gtrow .gv{font-size:20px;text-align:right;letter-spacing:-.3px}
+
+  /* Total pulse animation */
+  .gtrow td.pulse::after{
+    content:'';position:absolute;inset:0;background:rgba(255,255,255,.12);
+    animation:pulseFade .4s ease-out;pointer-events:none;
+  }
+  @keyframes pulseFade{from{opacity:1}to{opacity:0}}
+
+  .cst{width:100%;border:none;background:var(--inp);color:var(--ink);font-family:inherit;font-size:15px;font-weight:900;padding:6px 2px;text-align:center;outline:none;border-top:1.5px solid var(--bdr)}
+
+  /* Numpad */
+  .numpad{flex-shrink:0;background:var(--bg);padding:4px 2px 6px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+  .nk{
+    border:none;border-radius:8px;font-family:inherit;font-weight:900;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;transition:all .08s;
+    user-select:none;-webkit-user-select:none;position:relative;overflow:hidden;
+  }
+  .nk:active{transform:scale(.92)}
+  .nk.digit{background:var(--key);color:var(--key-fg);font-size:22px;padding:14px 0}
+  .nk.fn{background:var(--key-fn);color:#fff;font-size:12px;padding:12px 0;letter-spacing:.3px}
+  .nk.red{background:var(--key-red);color:#fff;font-size:16px;font-weight:900;padding:12px 0}
+  .nk.op{background:var(--key-hi);color:var(--key-fg);font-size:18px;padding:14px 0}
+  .nk.grn{background:var(--grn);color:#fff;font-size:12px;padding:12px 0}
+
+  /* Ripple effect */
+  .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,.3);transform:scale(0);animation:rippleAnim .4s ease-out}
+  @keyframes rippleAnim{to{transform:scale(3);opacity:0}}
+
+  /* Swipe hint */
+  .swipe-hint{
+    text-align:center;font-size:10px;color:var(--dim);padding:2px;
+    font-weight:700;letter-spacing:.3px;opacity:.7;
+  }
+</style>
+</head>
+<body>
+
+<!-- Fullscreen Prompt -->
+<div class="fs-prompt" id="fsPrompt">
+  <h2>🧾 GST Calculator</h2>
+  <p>For the best experience, open in full screen mode</p>
+  <button class="fs-btn" onclick="goFullscreen()">Open Full Screen</button>
+  <button class="fs-skip" onclick="skipFs()">Skip</button>
+</div>
+
+<div class="app">
+  <div class="top">
+    <h1>🧾 GST Calculator</h1>
+    <div class="top-btns">
+      <button class="tb add" onclick="clickSound();addRow()">＋ Row</button>
+      <button class="tb" onclick="clickSound();toggleDark()" id="dmBtn">🌙</button>
+    </div>
+  </div>
+
+  <div class="tbl-wrap" id="tblWrap">
+    <table>
+      <thead><tr>
+        <th style="width:24px"></th>
+        <th>Rate₹</th>
+        <th style="width:40px">Qty</th>
+        <th style="width:48px">GST</th>
+        <th style="width:48px">Disc₹</th>
+        <th>Excl₹</th>
+        <th>Taxable₹</th>
+      </tr></thead>
+      <tbody id="tb"></tbody>
+      <tfoot id="tf"></tfoot>
+    </table>
+    <div class="swipe-hint">← swipe row left to delete</div>
+  </div>
+
+  <div class="numpad" id="numpad">
+    <button class="nk fn" onclick="nk('gst')">GST %</button>
+    <button class="nk fn" onclick="nk('next')">NEXT ▶</button>
+    <button class="nk fn" onclick="nk('back')">⌫</button>
+    <button class="nk red" onclick="nk('clear')" id="cBtn">C</button>
+
+    <button class="nk digit" onclick="nk('7')">7</button>
+    <button class="nk digit" onclick="nk('8')">8</button>
+    <button class="nk digit" onclick="nk('9')">9</button>
+    <button class="nk grn" onclick="nk('addrow')">＋ ROW</button>
+
+    <button class="nk digit" onclick="nk('4')">4</button>
+    <button class="nk digit" onclick="nk('5')">5</button>
+    <button class="nk digit" onclick="nk('6')">6</button>
+    <button class="nk op" onclick="nk('000')">000</button>
+
+    <button class="nk digit" onclick="nk('1')">1</button>
+    <button class="nk digit" onclick="nk('2')">2</button>
+    <button class="nk digit" onclick="nk('3')">3</button>
+    <button class="nk op" onclick="nk('.')">.</button>
+
+    <button class="nk digit" onclick="nk('0')">0</button>
+    <button class="nk op" onclick="nk('00')">00</button>
+    <button class="nk fn" style="grid-column:span 2" onclick="nk('done')">DONE ✓</button>
+  </div>
+</div>
+
+<script>
+// ============ AUDIO ENGINE ============
+const AudioCtx=window.AudioContext||window.webkitAudioContext;
+let audioCtx;
+function initAudio(){if(!audioCtx) audioCtx=new AudioCtx()}
+
+function clickSound(){
+  initAudio();
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.connect(g);g.connect(audioCtx.destination);
+  o.type='sine';o.frequency.setValueAtTime(800,audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(600,audioCtx.currentTime+0.06);
+  g.gain.setValueAtTime(0.12,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.08);
+  o.start(audioCtx.currentTime);o.stop(audioCtx.currentTime+0.08);
+}
+
+function deleteSound(){
+  initAudio();
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  o.connect(g);g.connect(audioCtx.destination);
+  o.type='square';o.frequency.setValueAtTime(300,audioCtx.currentTime);
+  o.frequency.exponentialRampToValueAtTime(150,audioCtx.currentTime+0.12);
+  g.gain.setValueAtTime(0.08,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+0.12);
+  o.start(audioCtx.currentTime);o.stop(audioCtx.currentTime+0.12);
+}
+
+function doneSound(){
+  initAudio();
+  [0,.1,.2].forEach((d,i)=>{
+    const o=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    o.connect(g);g.connect(audioCtx.destination);
+    o.type='sine';o.frequency.setValueAtTime([523,659,784][i],audioCtx.currentTime+d);
+    g.gain.setValueAtTime(0.1,audioCtx.currentTime+d);
+    g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d+0.15);
+    o.start(audioCtx.currentTime+d);o.stop(audioCtx.currentTime+d+0.15);
+  });
+}
+
+function haptic(ms){try{navigator.vibrate(ms||15)}catch(e){}}
+
+// ============ FULLSCREEN ============
+function goFullscreen(){
+  const el=document.documentElement;
+  (el.requestFullscreen||el.webkitRequestFullscreen||el.msRequestFullscreen)?.call(el);
+  document.getElementById('fsPrompt').style.display='none';
+  initAudio();
+}
+function skipFs(){document.getElementById('fsPrompt').style.display='none';initAudio()}
+
+// ============ STATE ============
+let R=[],N=0,dk=false,V={};
+let activeInput=null;
+
+// Track focus
+document.addEventListener('focusin',e=>{
+  if(e.target.classList.contains('ti')||e.target.classList.contains('cst')){
+    activeInput=e.target;
+  }
+});
+
+// ============ NUMPAD ============
+function nk(cmd){
+  clickSound();haptic();
+  // Add ripple to clicked button (handled by CSS :active)
+  if('0123456789'.includes(cmd)||cmd==='00'||cmd==='000'||cmd==='.'){
+    if(!activeInput||activeInput.tagName==='SELECT') return;
+    activeInput.value+=cmd;
+    activeInput.dispatchEvent(new Event('input'));
+  } else if(cmd==='back'){
+    if(!activeInput||activeInput.tagName==='SELECT') return;
+    activeInput.value=activeInput.value.slice(0,-1);
+    activeInput.dispatchEvent(new Event('input'));
+  } else if(cmd==='clear'){
+    if(!activeInput||activeInput.tagName==='SELECT') return;
+    activeInput.value='';
+    activeInput.dispatchEvent(new Event('input'));
+  } else if(cmd==='next'){
+    const inputs=[...document.querySelectorAll('.ti,.gs,.cst')];
+    const idx=inputs.indexOf(activeInput);
+    if(idx>=0&&idx<inputs.length-1){inputs[idx+1].focus();activeInput=inputs[idx+1]}
+  } else if(cmd==='gst'){
+    if(!activeInput) return;
+    const id=activeInput.dataset?.i;
+    if(!id) return;
+    const sel=document.querySelector(`.gi[data-i="${id}"]`);
+    if(!sel) return;
+    const rates=['5','12','18','28'];
+    const cur=rates.indexOf(sel.value);
+    sel.value=rates[(cur+1)%rates.length];
+    sel.dispatchEvent(new Event('change'));
+  } else if(cmd==='addrow'){
+    addRow();
+  } else if(cmd==='done'){
+    doneSound();haptic(30);
+    if(activeInput) activeInput.blur();
+    activeInput=null;
+    // Clear all
+    R.forEach(id=>delete V[id]);R=[];N=0;
+    document.getElementById('tb').innerHTML='';
+    document.getElementById('tf').innerHTML='';
+    addRow();
+  }
+}
+
+// Long-press C to clear ALL
+let cTimer;
+const cBtn=document.getElementById('cBtn');
+cBtn.addEventListener('touchstart',e=>{e.preventDefault();cTimer=setTimeout(()=>{deleteSound();haptic(50);R.forEach(id=>delete V[id]);R=[];N=0;document.getElementById('tb').innerHTML='';document.getElementById('tf').innerHTML='';addRow()},600)});
+cBtn.addEventListener('touchend',()=>{if(cTimer){clearTimeout(cTimer);nk('clear')}});
+cBtn.addEventListener('touchcancel',()=>clearTimeout(cTimer));
+
+// ============ SPEAK TOTAL ============
+function speakTotal(){
+  if(!('speechSynthesis' in window)) return;
+  const total=lastTotal||0;
+  const rupees=Math.floor(total);
+  const paise=Math.round((total-rupees)*100);
+  let text=`Total is ${rupees} rupees`;
+  if(paise>0) text+=` and ${paise} paise`;
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='en-IN';u.rate=0.9;u.pitch=1;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+let lastTotal=0;
+
+// ============ DARK MODE ============
+function toggleDark(){dk=!dk;document.body.classList.toggle('dark',dk);document.getElementById('dmBtn').textContent=dk?'☀️':'🌙'}
+
+// ============ ROWS ============
+function addRow(){N++;R.push(N);V[N]={r:'',q:'',g:'5',d:'',c:'',cs:false};build();
+  const el=document.querySelector(`.ri[data-i="${N}"]`);
+  if(el){el.focus();activeInput=el}
+}
+function delRow(id){deleteSound();haptic(25);delete V[id];R=R.filter(r=>r!==id);build()}
+
+function $(s){return document.querySelector(s)}
+
+function save(){
+  R.forEach(id=>{
+    const e=s=>$(s+`[data-i="${id}"]`);
+    V[id]={r:e('.ri')?.value||'',q:e('.qi')?.value||'',g:e('.gi')?.value||'5',d:e('.di')?.value||'',c:e('.ci')?.value||'',cs:e('.ci')?.style.display!=='none'};
+  });
+}
+
+function build(){
+  save();
+  document.getElementById('tb').innerHTML=R.map(id=>{
+    const v=V[id];
+    const opts=['5','12','18','28','c'].map(o=>`<option value="${o}"${v.g===o?' selected':''}>${o==='c'?'…':o+'%'}</option>`).join('');
+    return `<tr class="line-row" data-row="${id}">
+      <td><button class="rm" onclick="delRow(${id})">✕</button></td>
+      <td><input class="ti ri" data-i="${id}" type="text" inputmode="none" placeholder="Rate" value="${v.r}" oninput="calc()"></td>
+      <td><input class="ti qi" data-i="${id}" type="text" inputmode="none" placeholder="Qty" value="${v.q}" oninput="calc()"></td>
+      <td><select class="gs gi" data-i="${id}" onchange="clickSound();gch(${id})">${opts}</select>${v.cs?`<input class="cst ci" data-i="${id}" type="text" inputmode="none" placeholder="%" value="${v.c}" oninput="calc()">`:`<input class="cst ci" data-i="${id}" type="text" inputmode="none" placeholder="%" value="${v.c}" style="display:none" oninput="calc()">`}</td>
+      <td><input class="ti di" data-i="${id}" type="text" inputmode="none" placeholder="Disc" value="${v.d}" oninput="calc()"></td>
+      <td class="cv" id="ex${id}">—</td>
+      <td class="cv" id="am${id}">—</td>
+    </tr>`}).join('');
+  initSwipe();
+  calc();
+}
+
+function gch(id){
+  const sel=$(`.gi[data-i="${id}"]`),ci=$(`.ci[data-i="${id}"]`);
+  if(sel.value==='c'){ci.style.display='';ci.focus();activeInput=ci}else{ci.style.display='none'}
+  calc();
+}
+
+function gr(id){
+  const sel=$(`.gi[data-i="${id}"]`);
+  if(sel?.value==='c') return parseFloat($(`.ci[data-i="${id}"]`)?.value)||0;
+  return parseFloat(sel?.value)||0;
+}
+
+function r2(n){return Math.round(n*100)/100}
+
+let prevTotal=0;
+function calc(){
+  let sumTaxable=0,sumCgst=0,sumSgst=0,rawTotal=0;
+
+  R.forEach(id=>{
+    const ri=parseFloat($(`.ri[data-i="${id}"]`)?.value)||0;
+    const qty=parseFloat($(`.qi[data-i="${id}"]`)?.value)||0;
+    const disc=parseFloat($(`.di[data-i="${id}"]`)?.value)||0;
+    const g=gr(id);
+
+    const exclRaw=g>0?ri/(1+g/100):ri;
+    const excl=r2(exclRaw);
+    const taxable=r2(Math.max(excl*qty-disc,0));
+    const cgst=r2(taxable*(g/200));
+    const sgst=r2(taxable*(g/200));
+
+    document.getElementById(`ex${id}`).textContent=ri?f(excl):'—';
+    document.getElementById(`am${id}`).textContent=(ri&&qty)?f(taxable):'—';
+
+    sumTaxable+=taxable;
+    sumCgst+=cgst;
+    sumSgst+=sgst;
+    rawTotal+=ri*qty;
+  });
+
+  sumTaxable=r2(sumTaxable);
+  sumCgst=r2(sumCgst);
+  sumSgst=r2(sumSgst);
+  rawTotal=r2(rawTotal);
+
+  const displayedSum=r2(sumTaxable+sumCgst+sumSgst);
+  const roundOff=r2(rawTotal-displayedSum);
+  lastTotal=rawTotal;
+
+  const totalChanged=prevTotal!==rawTotal;
+  prevTotal=rawTotal;
+
+  document.getElementById('tf').innerHTML=`
+    <tr class="frow"><td colspan="4" class="fl">Taxable</td><td colspan="3" class="fv">${f(sumTaxable)}</td></tr>
+    <tr class="frow"><td colspan="4" class="fl">CGST</td><td colspan="3" class="fv grn">${f(sumCgst)}</td></tr>
+    <tr class="frow"><td colspan="4" class="fl">SGST</td><td colspan="3" class="fv grn">${f(sumSgst)}</td></tr>
+    <tr class="frow"><td colspan="4" class="fl">Round off</td><td colspan="3" class="fv amb">${roundOff>=0?'+':''}${roundOff.toFixed(2)}</td></tr>
+    <tr class="gtrow"><td colspan="4" class="gl">TOTAL</td><td colspan="3" class="gv${totalChanged?' pulse':''}" id="gtCell">${f(rawTotal)}</td></tr>`;
+
+  // Remove pulse class after animation
+  if(totalChanged){
+    setTimeout(()=>{const c=document.getElementById('gtCell');if(c)c.classList.remove('pulse')},400);
+  }
+}
+
+function f(n){return '₹'+n.toLocaleString('en-IN',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+// ============ SWIPE TO DELETE ============
+function initSwipe(){
+  document.querySelectorAll('.line-row').forEach(row=>{
+    let startX=0,dx=0;
+    row.addEventListener('touchstart',e=>{startX=e.touches[0].clientX;dx=0});
+    row.addEventListener('touchmove',e=>{
+      dx=startX-e.touches[0].clientX;
+      if(dx>50) row.classList.add('swiping');
+      else row.classList.remove('swiping');
+    });
+    row.addEventListener('touchend',()=>{
+      if(dx>100){
+        const id=parseInt(row.dataset.row);
+        delRow(id);
+      } else {
+        row.classList.remove('swiping');
+      }
+    });
+  });
+}
+
+// ============ INIT ============
+addRow();
+
+// ============ PWA SERVICE WORKER ============
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+</script>
+</body>
+</html>
